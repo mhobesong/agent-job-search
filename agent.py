@@ -4,12 +4,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src import llm as llm_mod
-from src import report
-from src.checker import check_page
+from src.runner import run_search, SearchConfig
+from src.search import build_query
 from src.resume import extract_resume_text
-from src.search import SearchSession, build_query
-
 
 def parse_args():
     p = argparse.ArgumentParser(
@@ -24,12 +21,34 @@ def parse_args():
     p.add_argument("--model", default="llama3.2", help="Ollama model name (default llama3.2)")
     p.add_argument("--no-llm", action="store_true", help="Skip LLM steps 2 & 3; keep only deterministic match")
     p.add_argument("--headless", action="store_true", help="Run browser headless (disables captcha escalation)")
-    p.add_argument("--captcha-wait", type=int, default=120, help="Seconds to wait for a human to solve a captcha (default 120)")
+    p.add_argument("--captcha-wait", type=int, default=120, help="Seconds to wait for a human to solve a .")
     p.add_argument("--google-domain", default="google.com", help="Google domain, e.g. google.com / google.co.il")
     p.add_argument("--output", default="results.json", help="Output JSON path")
     p.add_argument("--list", action="store_true", help="Print the search query and exit")
     return p.parse_args()
 
+
+def _cli_emit(event_type: str, data: dict):
+    """CLI-compatible emitter that prints to stdout."""
+    if event_type == "info":
+        print(data.get("message", ""))
+    elif event_type == "warning":
+        print(f"\nWarning: {data.get('message', '')}")
+    elif event_type == "error":
+        print(f"\nError: {data.get('message', '')}")
+    elif event_type == "phase":
+        print(f"\n[Phase: {data.get('status')}] {data.pop('message', '')}")
+    elif event_type == "candidate_start":
+        print(f"[{data['idx']}/{data['total']}] {data['url']}")
+    elif event_type == "candidate_step":
+        print(f"      {data.get('detail', '')}")
+    elif event_type == "candidate_result":
+        status = data.get("status", "result")
+        print(f"      Result: {status}")
+    elif event_type == "candidates_total":
+        print(f"Total candidates found: {data['total']}")
+    elif event_type == "finish":
+        print("\nSearch process finished.")
 
 def main():
     args = parse_args()
@@ -42,112 +61,35 @@ def main():
         min_match = max(2, (len(skills) + 1) // 2)
 
     query = build_query(skills, args.remote)
-    print(f"Search query: {query}")
-    print(f"Skills ({len(skills)}): {', '.join(skills)}")
-    print(f"Remote required: {args.remote}")
-    print(f"Min skill match: {min_match}")
+    
     if args.list:
+        print(f"Search query: {query}")
+        print(f"Skills ({len(skills)}): {', '.join(skills)}")
+        print(f"Remote required: {args.remote}")
+        print(f"Min skill match: {min_match}")
         return
 
-    print("\nResume:")
+    config = SearchConfig(
+        resume_path=args.resume,
+        skills=skills,
+        remote=args.remote,
+        max_pages=args.max_pages,
+        min_skill_match=min_match,
+        model=args.model,
+        no_llm=args.no_llm,
+        headless=args.headless,
+        captcha_wait_s=args.captcha_wait,
+        google_domain=args.google_domain,
+        output_path=args.output
+    )
+
     try:
-        resume_text = extract_resume_text(args.resume)
+        resume_text = extract_resume_text(config.resume_path)
     except Exception as e:
         sys.exit(f"Error reading resume: {e}")
-    print(f"  extracted {len(resume_text)} chars from {args.resume}")
 
-    use_llm = not args.no_llm
-    if use_llm and not llm_mod.ollama_available():
-        print("\nWarning: Ollama is not reachable at http://localhost:11434. Falling back to deterministic match only.")
-        print("  (Start Ollama, or pass --no-llm to silence this.)")
-        use_llm = False
-
-    headless = args.headless
-    if headless:
-        print("\nWarning: --headless disables captcha escalation; the browser must be visible to hand off captchas to a human.")
-        headless = False
-
-    print("\nStarting browser and collecting Google results...\n")
-    session = SearchSession(headless=headless, google_domain=args.google_domain, captcha_wait_s=args.captcha_wait)
-    results = []
-    try:
-        hits = session.collect_results(query, max_pages=args.max_pages)
-        print(f"\nTotal unique candidate URLs: {len(hits)}\n")
-
-        for idx, item in enumerate(hits, 1):
-            url = item["url"]
-            print(f"[{idx}/{len(hits)}] {url}")
-
-            fetched = session.fetch_page(url)
-            if fetched is None:
-                results.append({"url": url, "title": "", "status": "fetch-failed",
-                                "matched": False, "skills_total": len(skills)})
-                continue
-            if fetched.get("status") == "captcha-timeout":
-                print("      captcha unsolved within deadline; skipping URL")
-                results.append({"url": url, "title": "", "status": "skipped:captcha",
-                                "matched": False, "skills_total": len(skills)})
-                continue
-            page_text = fetched["text"]
-
-            # Step 1: deterministic skill + remote matching
-            check = check_page(url, page_text, skills, args.remote, min_match)
-            print(f"      step1 skills {len(check.skills_matched)}/{len(skills)}, "
-                  f"remote {'yes' if check.remote_found else 'no'} -> "
-                  f"{'pass' if check.passed else 'FAIL'}")
-            if not check.passed:
-                results.append({
-                    "url": url, "title": fetched["title"], "status": "rejected:match",
-                    "matched": False,
-                    "skills_matched": check.skills_matched, "skills_missing": check.skills_missing,
-                    "skills_matched_count": len(check.skills_matched), "skills_total": len(skills),
-                    "remote_found": check.remote_found, "remote_required": args.remote,
-                })
-                continue
-
-            # Step 2 + 3: LLM validation and resume fit
-            if use_llm:
-                verdict = llm_mod.is_job_board(page_text, args.model)
-                if verdict is None:
-                    print("      step2 LLM unavailable; skipping job-board check")
-                elif verdict.get("is_job_board"):
-                    print(f"      step2 job-board: {verdict.get('reason', '')}")
-                    results.append({
-                        "url": url, "title": fetched["title"], "status": "rejected:job_board",
-                        "matched": False,
-                        "skills_matched": check.skills_matched,
-                        "skills_matched_count": len(check.skills_matched), "skills_total": len(skills),
-                        "remote_found": check.remote_found, "remote_required": args.remote,
-                    })
-                    continue
-
-                fit = llm_mod.resume_fit(resume_text, page_text, args.model)
-                if fit is None:
-                    print("      step3 LLM unavailable; keeping deterministic match")
-                    score, reason, matched = None, "", True
-                else:
-                    score, reason = fit.get("score"), fit.get("reason")
-                    matched = bool(fit.get("match")) or (score is not None and score >= 60)
-                    print(f"      step3 fit {score}: {reason}")
-            else:
-                score, reason, matched = None, "", True
-
-            results.append({
-                "url": url, "title": fetched["title"],
-                "status": "match" if matched else "review",
-                "matched": matched,
-                "skills_matched": check.skills_matched, "skills_missing": check.skills_missing,
-                "skills_matched_count": len(check.skills_matched), "skills_total": len(skills),
-                "remote_found": check.remote_found, "remote_required": args.remote,
-                "fit_score": score, "fit_reason": reason,
-            })
-    finally:
-        session.close()
-
-    print()
-    report.print_report(results)
-    report.write_json(results, query, path=args.output)
-
+    run_search(config, _cli_emit)
 
 if __name__ == "__main__":
     main()
+

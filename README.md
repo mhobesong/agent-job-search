@@ -58,6 +58,20 @@ python agent.py \
   --remote
 ```
 
+## Web Interface
+
+A local web interface is available to launch searches and monitor progress in real-time.
+
+```bash
+python -m web
+```
+
+Accessible at `http://127.0.0.1:8000`. Features include:
+- Live progress bar and event log.
+- File upload for resumes.
+- Light/Dark mode toggle.
+- Active run cancellation.
+
 Print just the query without running:
 
 ```bash
@@ -114,11 +128,13 @@ Example:
 
 ```
 agent.py           CLI entrypoint and main loop
+src/runner.py      Search pipeline and event emission
 src/search.py      Playwright Google search + candidate page fetch
 src/checker.py     Step 1: deterministic skill/remote matching
 src/llm.py         Ollama client for steps 2 & 3
 src/resume.py      Resume text extraction (pdfplumber)
 src/report.py      Console table + results.json
+web/               Web interface (FastAPI + Vanilla JS)
 requirements.txt
 ```
 

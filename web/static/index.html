@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Search Agent</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Job Search Agent</h1>
+        <button id="theme-toggle" title="Toggle Light/Dark Mode">
+            <span class="icon">🌙</span>
+        </button>
+    </header>
+
+    <main>
+        <div class="card">
+            <form id="search-form" enctype="multipart/form-data">
+                <div id="drop-zone" class="drop-zone">
+                    <p>Click or drag resume here (.pdf, .txt, .md)</p>
+                    <input type="file" id="resume-file" name="resume" accept=".pdf,.txt,.md" required>
+                    <div id="file-info" class="hidden"></div>
+                </div>
+
+                <div class="input-group">
+                    <label for="skills">Skills (comma-separated)</label>
+                    <input type="text" id="skills" name="skills" placeholder="e.g. python, sql, aws" required>
+                    <div id="skills-chips" class="chips-container"></div>
+                </div>
+
+                <div class="input-group">
+                    <label class="switch">
+                        <input type="checkbox" name="remote" id="remote-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                    <span>Require Remote</span>
+                </div>
+
+                <details id="advanced-settings">
+                    <summary>Advanced Settings</summary>
+                    <div class="settings-grid">
+                        <div class="input-group">
+                            <label for="max-pages">Max Pages</label>
+                            <input type="number" name="max_pages" value="2" min="1">
+                        </div>
+                        <div class="input-group">
+                            <label for="min-skill-match">Min Skill Match</label>
+                            <input type="text" name="min_skill_match" value="majority">
+                        </div>
+                        <div class="input-group">
+                            <label for="model">Model</label>
+                            <input type="text" name="model" value="llama3.1">
+                        </div>
+                        <div class="input-group">
+                            <label for="captcha-wait">Captcha Wait (sec)</label>
+                            <input type="number" name="captcha_wait" value="120">
+                        </div>
+                        <div class="input-group">
+                            <label for="google-domain">Google Domain</label>
+                            <input type="text" name="google_domain" value="google.com">
+                        </div>
+                        <div class="input-group checkbox-group">
+                            <label>
+                                <input type="checkbox" name="no_llm" value="true">
+                                No LLM
+                            </label>
+                        </div>
+                    </div>
+                </details>
+
+                <div class="form-actions">
+                    <button type="button" id="preview-query" class="btn-secondary">Preview Query</button>
+                    <button type="submit" id="start-search" class="btn-primary">Start Search</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="progress-section" class="hidden">
+            <div class="card">
+                <div class="progress-header">
+                    <h2 id="phase-label">Preparing...</h2>
+                    <button id="cancel-search" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">Cancel</button>
+                </div>
+                <div class="progress-container">
+                    <div id="progress-bar" class="progress-bar"></div>
+                </div>
+                <div id="current-task" class="monospace"></div>
+                
+                <div id="captcha-banner" class="captcha-banner hidden">
+                    <span class="pulse"></span>
+                    <span id="captcha-msg">Solve the captcha in the browser window — waiting...</span>
+                </div>
+
+                <div id="event-log" class="event-log"></div>
+            </div>
+        </div>
+
+        <div id="results-section" class="hidden">
+            <div class="card">
+                <div class="results-summary"></div>
+                <div class="table-container">
+                    <table id="results-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>URL</th>
+                                <th>Skills</th>
+                                <th>Remote</th>
+                                <th>Score</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="results-actions">
+                    <button id="download-json" class="btn-secondary">Download results.json</button>
+                    <button id="copy-urls" class="btn-secondary">Copy URLs</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

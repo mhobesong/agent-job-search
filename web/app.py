@@ -1,4 +1,12 @@
 import os
+import sys
+from pathlib import Path
+
+# Add project root to sys.path to allow importing from 'src'
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.append(str(project_root))
+
 import uuid
 import shutil
 import threading
@@ -39,7 +47,7 @@ async def get_index():
 
 def emit_to_queue(event_type: str, data: Dict[str, Any]):
     if state.loop and state.events_queue:
-        event = {"type": event_type, "data": data}
+        event = {"type": event_type, "payload": data}
         state.loop.call_soon_threadsafe(state.events_queue.put_nowait, event)
 
 @app.post("/api/run")

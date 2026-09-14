@@ -102,7 +102,7 @@ function handleFiles(files) {
 // --- API Interaction ---
 previewBtn.addEventListener('click', async () => {
     const skillsVal = skillsInput.value;
-    const remote = document.getElementById('remote-toggle').checked ? 1 : 0;
+const remote = document.getElementById('remote-toggle').checked ? 'true' : 'false';
     try {
     const response = await fetch(`/api/query?skills=${encodeURIComponent(skillsVal)}&remote=${remote}`);
     const query = await response.text();
@@ -161,34 +161,33 @@ function startStreaming(runId) {
     handleEvent(data);
     };
 
-    eventSource.onerror = () => {
-        console.error('SSE connection lost.');
-        eventLog.innerHTML += `<div>[SYSTEM] Connection lost... attempting to reconnect</div>`;
-        // The browser's EventSource will automatically try to reconnect.
-        // We can poll /api/status here if needed.
-    };
-    
-    // Add a listener for the 'finish' or 'error' events specifically if they are separate
-    // but usually they are part of the JSON stream.
-    };
+        eventSource.onerror = () => {
+            console.error('SSE connection lost.');
+            eventLog.innerHTML += `<div>[SYSTEM] Connection lost... attempting to reconnect</div>`;
+            // The browser's EventSource will automatically try to reconnect.
+            // We can poll /api/status here if needed.
+        };
 }
+
+
 
 function handleEvent(data) {
     const { type, payload } = data;
 
     switch (type) {
+    case 'info':
+        const infoDiv = document.createElement('div');
+        infoDiv.textContent = data.payload.message || data.payload.msg || '';
+        eventLog.prepend(infoDiv);
+        break;
     case 'phase':
+        phaseLabel.textContent = data.payload.message || 'Evaluating candidates...';
+        break;
     case 'listing_page':
+        phaseLabel.textContent = `Collecting Google results — page ${data.payload.page}/${data.payload.total}`;
+        break;
     case 'candidates_total':
-    case 'candidate_start':
-        phaseLabel.textContent = data.payload.phase || 'Evaluating candidates...';
-        if (data.type === 'listing_page') {
-            phaseLabel.textContent = `Collecting Google results — page ${data.payload.page}/${data.payload.total}`;
-        }
-        if (data.type === 'candidates_total') {
-            // We can't know total candidates until they are all found, 
-            // but we know how many we scale between.
-        }
+        // Total candidate count; individual progress comes via candidate_start.
         break;
     case 'candidate_start':
         currentTask.textContent = `Checking [${data.payload.idx}/${data.payload.total}] ${data.payload.url}`;
@@ -200,18 +199,21 @@ function handleEvent(data) {
         eventLog.prepend(stepDiv);
         break;
     case 'candidate_result':
-        const row = data.payload;
-        const tr = document.createElement('tr');
-        const scoreClass = getScoreClass(row.fit_score);
-        tr.innerHTML = `
-            <td>${resultsTableBody.children.length + 1}</td>
-            <td><a href="${row.url}" target="_blank">${row.url.substring(0, 40)}...</a></td>
-            <td>${row.skills_matched.join(', ')}</td>
-            <td>${row.remote_found ? '✓' : '✗'}</td>
-            <td><span class="badge ${scoreClass}">${row.fit_score}</span></td>
-            <td><span class="badge badge-gray">${row.status}</span></td>
-        `;
-        resultsTableBody.appendChild(tr);
+        const row = data.payload.row || data.payload;
+        if (data.payload.row) {
+            const tr = document.createElement('tr');
+            const scoreClass = getScoreClass(row.fit_score);
+            const score = row.fit_score != null ? row.fit_score : '—';
+            tr.innerHTML = `
+                <td>${resultsTableBody.children.length + 1}</td>
+                <td><a href="${row.url}" target="_blank">${row.url.substring(0, 40)}...</a></td>
+                <td>${(row.skills_matched || []).join(', ')}</td>
+                <td>${row.remote_found ? '✓' : '✗'}</td>
+                <td><span class="badge ${scoreClass}">${score}</span></td>
+                <td><span class="badge badge-gray">${row.status}</span></td>
+            `;
+            resultsTableBody.appendChild(tr);
+        }
         break;
     case 'captcha':
         captchaBanner.classList.remove('hidden');
@@ -222,8 +224,8 @@ function handleEvent(data) {
         break;
     case 'warning':
         const warnDiv = document.createElement('div');
-        warnDiv.style.color = 'varvar(--warning-color)';
-        warnDiv.textContent = `[WARN] ${data.payload.msg}`;
+        warnDiv.style.color = 'var(--warning-color, #b58900)';
+        warnDiv.textContent = `[WARN] ${data.payload.msg || data.payload.message}`;
         eventLog.prepend(warnDiv);
         break;
     case 'finish':
@@ -232,7 +234,7 @@ function handleEvent(data) {
         break;
     case 'error':
         progressBar.classList.add('error');
-        alert(`Error: ${data.payload.msg}`);
+        alert(`Error: ${data.payload.msg || data.payload.message || 'Unknown error'}`);
         finishRun(null);
         break;
     }

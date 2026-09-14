@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Job Search Agent</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <header>
@@ -31,7 +31,7 @@
 
                 <div class="input-group">
                     <label class="switch">
-                        <input type="checkbox" name="remote" id="remote-toggle">
+                        <input type="checkbox" name="remote" id="remote-toggle" value="true">
                         <span class="slider round"></span>
                     </label>
                     <span>Require Remote</span>
@@ -46,7 +46,7 @@
                         </div>
                         <div class="input-group">
                             <label for="min-skill-match">Min Skill Match</label>
-                            <input type="text" name="min_skill_match" value="majority">
+                            <input type="number" name="min_skill_match" value="2" min="1">
                         </div>
                         <div class="input-group">
                             <label for="model">Model</label>
@@ -122,6 +122,6 @@
         </div>
     </main>
 
-    <script src="app.js"></script>
+    <script src="/static/app.js"></script>
 </body>
 </html>

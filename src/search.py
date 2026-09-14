@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime, timedelta
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -155,7 +156,10 @@ def build_query(skills, is_remote, excluded=EXCLUDED_SITES):
     terms = [f'"{s}"' for s in skills]
     if is_remote:
         terms.append('"remote"')
-    query = 'intitle:career AND ' + " AND ".join(terms)
+    today = datetime.now()
+    seven_days_ago = today - timedelta(days=7)
+    date_str = seven_days_ago.strftime("%Y-%m-%d")
+    query = 'intitle:career after:' + date_str + ' AND ' + " AND ".join(terms)
     for site in excluded:
         query += f" -site:{site}"
     return query

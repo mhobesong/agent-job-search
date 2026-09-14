@@ -162,9 +162,18 @@ async def get_result():
         raise HTTPException(status_code=404, detail="No results available")
     return state.last_results
 
-@app.get("/api/query")
-async def get_query(skills: str, remote: str = "false"):
-    from src.search import build_query
-    skill_list = [s.strip() for s in skills.split(",")]
-    query = build_query(skill_list, remote.lower() == "true")
-    return {"query": query}
+import httpx
+
+@app.get("/api/models")
+async def get_models():
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://localhost:11434/api/tags", timeout=5.0)
+            if response.status_code == 200:
+                data = response.json()
+                return [m["name"] for m in data.get("models", [])]
+            else:
+                return []
+    except Exception as e:
+        print(f"Error fetching models: {e}")
+        return []

@@ -23,9 +23,33 @@ const copyUrlsBtn = document.getElementById('copy-urls');
 let skills = [];
 let eventSource = null;
 
+// --- Model Management ---
+const modelList = document.getElementById('model-list');
+
+async function loadModels() {
+    try {
+        const response = await fetch('/api/models');
+        if (!response.ok) throw new Error('Failed to fetch models');
+        const models = await response.json();
+        
+        if (modelList) {
+            modelList.innerHTML = '';
+            models.sort().forEach(model => {
+                const option = document.createElement('option');
+                option.value = model;
+                modelList.appendChild(option);
+            });
+        }
+    } catch (err) {
+        console.error('Error loading models:', err);
+    }
+}
+
+// Initialize models on load
+loadModels();
+
 // --- Theme Management ---
 const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-document.documentElement.setAttribute('data:theme', savedTheme); // Initial attempt, but better to use data-theme on body or root
 document.body.setAttribute('data-theme', savedTheme);
 
 themeToggle.addEventListener('click', () => {
@@ -36,7 +60,6 @@ themeToggle.addEventListener('click', () => {
     themeToggle.querySelector('.icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
 });
 
-// --- Skills Chip Logic ---
 skillsInput.addEventListener('input', (e) => {
     const val = e.target.value;
     skills = val.split(',').map(s => s.trim()).filter(s => s !== '');

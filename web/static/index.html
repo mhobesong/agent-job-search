@@ -50,7 +50,10 @@
                         </div>
                         <div class="input-group">
                             <label for="model">Model</label>
-                            <input type="text" name="model" value="llama3.1">
+                            <input type="text" name="model" id="model-input" list="model-list" value="llama3.1">
+                            <datalist id="model-list">
+                                <option value="llama3.1">
+                            </datalist>
                         </div>
                         <div class="input-group">
                             <label for="captcha-wait">Captcha Wait (sec)</label>

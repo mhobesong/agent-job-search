@@ -55,6 +55,7 @@ async def start_run(
     request: Request,
     resume: UploadFile = File(...),
     skills: str = Form(...),
+    query: str = Form(""),
     remote: str = Form("false"),
     max_pages: str = Form("2"),
     min_skill_match: str = Form(""),
@@ -82,10 +83,20 @@ async def start_run(
     # Parsing args
     try:
         min_match_val = int(min_skill_match) if min_skill_match else 0
+        
+        skills_list = [s.strip() for s in skills.split(",") if s.strip()]
+        is_remote = remote.lower() == "true"
+        
+        if query.strip():
+            final_query = query.strip()
+        else:
+            from src.search import build_query
+            final_query = build_query(skills_list, is_remote)
+
         config = SearchConfig(
             resume_path=str(upload_path.absolute()),
-            skills=[s.strip() for s in skills.split(",")],
-            remote=remote.lower() == "true",
+            skills=skills_list,
+            remote=is_remote,
             max_pages=int(max_pages),
             min_skill_match=min_match_val,
             model=model,
@@ -93,7 +104,8 @@ async def start_run(
             headless=headless.lower() == "true",
             captcha_wait_s=int(captcha_wait_s),
             google_domain=google_domain,
-            output_path=output
+            output_path=output,
+            custom_query=final_query if query.strip() else None
         )
     except Exception as e:
         state.lock.release()
@@ -163,8 +175,10 @@ async def get_result():
     return state.last_results
 
 @app.get("/api/query")
-async def get_query(skills: str, remote: str = "false"):
+async def get_query(skills: str, remote: str = "false", query: str = ""):
     from src.search import build_query
+    if query.strip():
+        return {"query": query.strip()}
     skill_list = [s.strip() for s in skills.split(",")]
-    query = build_query(skill_list, remote.lower() == "true")
-    return {"query": query}
+    query_val = build_query(skill_list, remote.lower() == "true")
+    return {"query": query_val}

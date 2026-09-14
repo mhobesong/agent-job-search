@@ -15,6 +15,7 @@ class SearchConfig:
     captcha_wait_s: int
     google_domain: str
     output_path: str
+    custom_query: Optional[str] = None
 
 def run_search(config: SearchConfig, 
                emit: Callable[[str, dict], None], 
@@ -41,7 +42,7 @@ def run_search(config: SearchConfig,
     if min_match == 0:
         min_match = max(2, (len(skills) + 1) // 2)
 
-    query = build_query(skills, config.remote)
+    query = config.custom_query if config.custom_query else build_query(skills, config.remote)
     
     # Initial info
     emit("info", {"message": f"Search query: {query}"})

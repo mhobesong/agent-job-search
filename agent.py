@@ -14,6 +14,7 @@ def parse_args():
     )
     p.add_argument("--resume", required=True, help="Path to resume (.pdf, .txt, .md)")
     p.add_argument("--skills", required=True, help='Comma-separated skills, e.g. "python,sql,aws"')
+    p.add_argument("--query", help="Custom Google search query. If provided, overrides skills/remote logic.")
     p.add_argument("--remote", action="store_true", help="Require remote / work-from-home postings")
     p.add_argument("--max-pages", type=int, default=2, help="Number of Google listing pages to walk (default 2)")
     p.add_argument("--min-skill-match", type=int, default=0,
@@ -60,7 +61,7 @@ def main():
     if min_match == 0:
         min_match = max(2, (len(skills) + 1) // 2)
 
-    query = build_query(skills, args.remote)
+    query = args.query if args.query else build_query(skills, args.remote)
     
     if args.list:
         print(f"Search query: {query}")

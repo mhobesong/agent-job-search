@@ -6,7 +6,7 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
-EXCLUDED_SITES = ["facebook.com", "linkedin.com"]
+EXCLUDED_SITES = ["facebook.com", "linkedin.com", "instagram.com"]
 
 CAPTCHA_SELECTORS = [
     "iframe[src*='google.com/recaptcha']",
@@ -159,7 +159,8 @@ def build_query(skills, is_remote, excluded=EXCLUDED_SITES):
     today = datetime.now()
     seven_days_ago = today - timedelta(days=7)
     date_str = seven_days_ago.strftime("%Y-%m-%d")
-    query = 'intitle:career after:' + date_str + ' AND ' + " AND ".join(terms)
+    #query = 'intitle:career after:' + date_str + ' AND ' + " AND ".join(terms)
+    query = 'intitle:career ' + " AND ".join(terms)
     for site in excluded:
         query += f" -site:{site}"
     return query
